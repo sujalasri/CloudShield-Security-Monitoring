@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudShield Security Dashboard</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f1f5f9;
+  color: #172554;
+}
+header {
+  background: #102a43;
+  color: white;
+  padding: 22px 35px;
+}
+header h1 { margin: 0; }
+header p { color: #cbd5e1; margin-bottom: 0; }
+main { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(190px,1fr));
+  gap: 18px;
+}
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #00000012;
+}
+.card h3 { color: #64748b; font-size: 14px; }
+.number { font-size: 32px; font-weight: bold; }
+button {
+  background: #2563eb;
+  color: white;
+  border: 0;
+  padding: 13px 22px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: bold;
+}
+button:disabled { opacity: .6; cursor: wait; }
+.panel {
+  background: white;
+  padding: 22px;
+  margin-top: 24px;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+th,td { padding: 13px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { color: #64748b; }
+.SECURE { color: #15803d; font-weight: bold; }
+.WARNING { color: #dc2626; font-weight: bold; }
+#message { margin-left: 12px; color: #475569; }
+footer { text-align: center; color: #64748b; padding: 25px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CloudShield</h1>
+  <p>AWS Cloud Security Monitoring and Alert System</p>
+</header>
+
+<main>
+  <h2>Security Overview</h2>
+  <button id="scanButton" onclick="scanBuckets()">Scan Now</button>
+  <span id="message">Ready to scan</span>
+
+  <section class="cards" style="margin-top:24px">
+    <div class="card"><h3>Total Buckets</h3><div class="number" id="total">-</div></div>
+    <div class="card"><h3>Secure Buckets</h3><div class="number" id="secure">-</div></div>
+    <div class="card"><h3>Warning Buckets</h3><div class="number" id="warnings">-</div></div>
+    <div class="card"><h3>Alerts Detected</h3><div class="number" id="alerts">-</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Bucket Security Status</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Bucket Name</th>
+          <th>Public Access Block</th>
+          <th>Encryption</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="bucketRows">
+        <tr><td colspan="4">Click Scan Now to load live results.</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<footer>CloudShield | AWS Security Monitoring Project</footer>
+
+<script>
+const API_URL = "https://8r77x5fgv4.execute-api.us-east-1.amazonaws.com/scan";
+
+async function scanBuckets() {
+  const button = document.getElementById("scanButton");
+  const message = document.getElementById("message");
+  button.disabled = true;
+  message.textContent = "Scanning AWS S3 buckets...";
+
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error("API request failed: " + response.status);
+
+    const data = await response.json();
+
+    document.getElementById("total").textContent = data.total_buckets;
+    document.getElementById("warnings").textContent = data.alerts_count;
+    document.getElementById("secure").textContent =
+      data.results.filter(item => item.status === "SECURE").length;
+    document.getElementById("alerts").textContent = data.alerts_count;
+
+    document.getElementById("bucketRows").innerHTML = data.results.map(item => `
+      <tr>
+        <td>${escapeHTML(item.bucket)}</td>
+        <td>${item.public_access_block ? "Enabled" : "Not fully enabled"}</td>
+        <td>${item.encryption_enabled ? "Enabled" : "Not confirmed"}</td>
+        <td class="${item.status}">${item.status}</td>
+      </tr>
+    `).join("");
+
+    message.textContent = "Scan completed successfully.";
+  } catch (error) {
+    message.textContent = "Error: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+  })[char]);
+}
+</script>
+</body>
+</html>
